@@ -5,9 +5,6 @@ import android.graphics.Canvas
 import android.graphics.ColorMatrix
 import android.graphics.ColorMatrixColorFilter
 import android.graphics.Paint
-import android.graphics.RenderScript
-import kotlin.math.max
-import kotlin.math.min
 
 /**
  * CPU colour pipeline. Applies a [ColorPreset] to a Bitmap in a fixed order:
