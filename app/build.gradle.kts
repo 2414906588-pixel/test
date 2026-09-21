@@ -6,6 +6,7 @@ plugins {
 android {
     namespace = "com.raweditor.app"
     compileSdk = 34
+    ndkVersion = "26.1.10909125"
 
     defaultConfig {
         applicationId = "com.raweditor.app"
@@ -26,7 +27,7 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            // Sign release with debug key so the APK is directly installable.
+            // Sign release with the debug key so the APK is directly installable.
             signingConfig = signingConfigs.getByName("debug")
         }
     }
