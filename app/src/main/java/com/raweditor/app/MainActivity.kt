@@ -1,21 +1,36 @@
 package com.raweditor.app
 
 import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.net.Uri
 import android.os.Bundle
 import android.view.View
+import android.widget.ImageView
+import android.widget.ProgressBar
+import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
+import com.google.android.material.button.MaterialButton
+import com.google.android.material.chip.Chip
+import com.google.android.material.chip.ChipGroup
+import com.google.android.material.slider.Slider
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 class MainActivity : AppCompatActivity() {
 
-    private lateinit var binding: ActivityMainBinding
+    private lateinit var imageView: ImageView
+    private lateinit var progress: ProgressBar
+    private lateinit var tvStatus: TextView
+    private lateinit var tvPresetDesc: TextView
+    private lateinit var tvStrength: TextView
+    private lateinit var chipGroup: ChipGroup
+    private lateinit var sliderStrength: Slider
+    private lateinit var presetScroll: View
+    private lateinit var btnPick: MaterialButton
+    private lateinit var btnSave: MaterialButton
 
     private var original: Bitmap? = null
     private var preview: Bitmap? = null
@@ -37,11 +52,21 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        binding = ActivityMainBinding.inflate(layoutInflater)
-        setContentView(binding.root)
+        setContentView(R.layout.activity_main)
 
-        binding.btnPick.setOnClickListener { pickImage.launch(arrayOf("image/*", "*/*")) }
-        binding.btnSave.setOnClickListener {
+        imageView = findViewById(R.id.imageView)
+        progress = findViewById(R.id.progress)
+        tvStatus = findViewById(R.id.tvStatus)
+        tvPresetDesc = findViewById(R.id.tvPresetDesc)
+        tvStrength = findViewById(R.id.tvStrength)
+        chipGroup = findViewById(R.id.chipGroup)
+        sliderStrength = findViewById(R.id.sliderStrength)
+        presetScroll = findViewById(R.id.presetScroll)
+        btnPick = findViewById(R.id.btnPick)
+        btnSave = findViewById(R.id.btnSave)
+
+        btnPick.setOnClickListener { pickImage.launch(arrayOf("image/*", "*/*")) }
+        btnSave.setOnClickListener {
             if (preview == null) {
                 toast("请先选择一张图片")
             } else {
@@ -49,49 +74,49 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        binding.chipGroup.removeAllViews()
+        chipGroup.removeAllViews()
         for (p in Presets.ALL) {
-            val chip = com.google.android.material.chip.Chip(this).apply {
+            val chip = Chip(this).apply {
                 text = p.displayName
                 isCheckable = true
                 isChecked = p.id == selectedPreset.id
                 setOnClickListener {
                     selectedPreset = p
-                    binding.tvPresetDesc.text = p.description
+                    tvPresetDesc.text = p.description
                     render()
                 }
             }
-            binding.chipGroup.addView(chip)
+            chipGroup.addView(chip)
         }
-        binding.tvPresetDesc.text = selectedPreset.description
+        tvPresetDesc.text = selectedPreset.description
 
-        binding.sliderStrength.value = strength * 100f
-        binding.sliderStrength.addOnChangeListener { _, value, _ ->
+        sliderStrength.value = strength * 100f
+        sliderStrength.addOnChangeListener { _, value, _ ->
             strength = value / 100f
-            binding.tvStrength.text = "强度 ${value.toInt()}%"
+            tvStrength.text = "强度 ${value.toInt()}%"
             render()
         }
-        binding.tvStrength.text = "强度 ${(strength * 100).toInt()}%"
+        tvStrength.text = "强度 ${(strength * 100).toInt()}%"
 
-        binding.presetScroll.visibility = View.GONE
+        presetScroll.visibility = View.GONE
     }
 
     private fun loadImage(uri: Uri) {
         if (busy) return
         busy = true
-        binding.progress.visibility = View.VISIBLE
+        progress.visibility = View.VISIBLE
         lifecycleScope.launch {
             val result = withContext(Dispatchers.IO) { RawDecoder.decode(this@MainActivity, uri) }
-            binding.progress.visibility = View.GONE
+            progress.visibility = View.GONE
             busy = false
             if (result.bitmap == null) {
                 toast(result.error ?: "解码失败")
-                binding.presetScroll.visibility = View.GONE
+                presetScroll.visibility = View.GONE
                 return@launch
             }
             original = result.bitmap
-            binding.presetScroll.visibility = View.VISIBLE
-            binding.tvStatus.text =
+            presetScroll.visibility = View.VISIBLE
+            tvStatus.text =
                 (if (result.wasRaw) "RAW 文件已载入 · " else "图片已载入 · ") +
                         "${result.bitmap.width}×${result.bitmap.height}"
             render()
@@ -102,15 +127,15 @@ class MainActivity : AppCompatActivity() {
         val src = original ?: return
         if (busy) return
         busy = true
-        binding.progress.visibility = View.VISIBLE
+        progress.visibility = View.VISIBLE
         lifecycleScope.launch {
             val out = withContext(Dispatchers.Default) {
                 val scaled = downscaleForPreview(src)
                 ColorPipeline.apply(scaled, selectedPreset, strength)
             }
             preview = out
-            binding.imageView.setImageBitmap(out)
-            binding.progress.visibility = View.GONE
+            imageView.setImageBitmap(out)
+            progress.visibility = View.GONE
             busy = false
         }
     }
@@ -129,13 +154,12 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun saveTo(uri: Uri) {
-        val bmp = preview ?: return
+        val src = original ?: return
         lifecycleScope.launch {
-            binding.progress.visibility = View.VISIBLE
+            progress.visibility = View.VISIBLE
             val ok = withContext(Dispatchers.IO) {
                 try {
                     // Re-render at full resolution for export.
-                    val src = original ?: return@withContext false
                     val full = ColorPipeline.apply(src, selectedPreset, strength)
                     contentResolver.openOutputStream(uri)?.use { os ->
                         full.compress(Bitmap.CompressFormat.JPEG, 95, os)
@@ -145,7 +169,7 @@ class MainActivity : AppCompatActivity() {
                     false
                 }
             }
-            binding.progress.visibility = View.GONE
+            progress.visibility = View.GONE
             toast(if (ok) "已保存" else "保存失败")
         }
     }
